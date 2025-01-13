@@ -75,10 +75,10 @@ class DecisionTree(Node):
     def print_contents(self):
         if not self.children.empty:
             print("Children:")
-            print(self.children["children"])
+            print(self.children["children"].to_string(index=True))
         if not self.leaves.empty:
             print("Leaves:")
-            print(self.leaves.values)
+            print(self.leaves.to_string(index=True))
 
     def _normalize_probabilities(self):
         total = sum(self.children["probabilities"])
