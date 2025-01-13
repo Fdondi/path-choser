@@ -25,6 +25,8 @@ class Node:
         return f"Node({self.name}, {self.description})"
 
     def to_json_object(self):
+        if not self.description:
+            return self.name
         return {
             "name": self.name,
             "description": self.description,
@@ -32,6 +34,8 @@ class Node:
 
     @classmethod
     def from_json_object(cls, data):
+        if isinstance(data, str):
+            return cls(name=data, description="")
         return cls(name=data["name"], description=data["description"])
 
 class Leaf(Node):
