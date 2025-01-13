@@ -1,8 +1,14 @@
 from pathlib import Path
-import pickle
+import json
 import random
-from typing import Optional, Union
+from typing import Optional
 import pandas as pd
+
+def from_json_object_list(cls, data):
+    return [cls.from_json_object(obj) for obj in data]
+
+def to_json_object_list(data):
+    return [obj.to_json_object() for obj in data]
 
 class Node:
     def __init__(self, name, description):
@@ -18,6 +24,16 @@ class Node:
     def __repr__(self):
         return f"Node({self.name}, {self.description})"
 
+    def to_json_object(self):
+        return {
+            "name": self.name,
+            "description": self.description,
+        }
+
+    @classmethod
+    def from_json_object(cls, data):
+        return cls(name=data["name"], description=data["description"])
+
 class Leaf(Node):
     def __init__(self, name, description):
         super().__init__(name, description)
@@ -28,6 +44,34 @@ class DecisionTree(Node):
         self.children = pd.DataFrame(columns=['children', 'probabilities'])
         self.leaves = pd.Series()
     
+    def to_json_object(self):
+        return {
+            "name": self.name,
+            "description": self.description,
+            "leaves": to_json_object_list(self.leaves),  # Convert each leaf to JSON
+            "children_probabilities": self.children["probabilities"].tolist(),
+            "children": to_json_object_list(self.children["children"]),  # Convert each child to JSON
+        }
+
+    def to_json_file(self, filename):
+        with open(filename, "w") as file:
+            json.dump(self.to_json_object(), file, indent=4)
+
+    @classmethod
+    def from_json_object(cls, data):
+        # Custom deserialization
+        obj = cls(name=data["name"], description=data["description"])
+        children = from_json_object_list(DecisionTree, data["children"])  # Recursively create children
+        obj.children = pd.DataFrame({"children": children, "probabilities": data["children_probabilities"]})  # Recreate DataFrame
+        leaves = from_json_object_list(Leaf, data["leaves"])  # Recursively create leaves
+        obj.leaves = pd.Series(leaves)  # Recreate Series
+        return obj
+
+    @classmethod
+    def from_json_file(cls, filename):
+        with open(filename) as file:
+            return cls.from_json_object(json.load(file))
+
     def print_contents(self):
         if not self.children.empty:
             print("Children:")
@@ -139,9 +183,9 @@ class DecisionTree(Node):
                 print(' ' * level + str(leaf))
 
 if __name__ == "__main__":
-    filename = Path('tree.pkl')
-    root = pickle.load(open(filename, "rb")) if filename.exists() else DecisionTree("root")
+    filename = Path('tree.json')
+    root = DecisionTree.from_json_file(filename) if filename.exists() else DecisionTree("root")
     root.visit()
     print("Final tree:")
     root.print()
-    pickle.dump(root, open(filename, "wb"))
+    root.to_json_file(filename)
